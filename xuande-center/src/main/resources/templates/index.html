@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SSE Data Receiver</title>
+</head>
+<body>
+<h1>Real-time Data Display</h1>
+<div id="data-container"></div>
+
+<script>
+  const dataContainer = document.getElementById('data-container');
+
+  // 创建一个 EventSource 对象，指定 SSE 服务器端点的 URL
+  let eventSource = new EventSource('http://127.0.0.1:13024/environment/subscribe'); // 根据你的控制器端点来设置URL
+
+  eventSource.onopen = function(event) {
+
+  };
+
+  // 添加事件处理程序，监听服务器端发送的事件
+  eventSource.onmessage = (event) => {
+    const data = event.data;
+    // 在这里处理从服务器接收到的数据
+    // 可以将数据显示在页面上或进行其他操作
+    const newDataElement = document.createElement('p');
+    newDataElement.textContent = data;
+    dataContainer.appendChild(newDataElement);
+  };
+
+  eventSource.onerror = (error) => {
+    // 处理连接错误
+    console.error('Error occurred:', error);
+    // 重新建立连接
+    eventSource.close();
+    setTimeout(() => {
+      // 重新建立连接
+      eventSource = new EventSource('/environment/subscribe');
+    }, 1000); // 1秒后重试
+  };
+</script>
+</body>
+</html>
