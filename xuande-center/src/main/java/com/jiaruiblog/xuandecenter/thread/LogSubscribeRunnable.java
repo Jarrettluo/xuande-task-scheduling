@@ -39,22 +39,25 @@ public class LogSubscribeRunnable implements Runnable{
     // 存储了队列
     private List<SseEmitter> sseEmitterList = new ArrayList<>();
 
-    public LogSubscribeRunnable(List<SseEmitter> sseEmitterList) {
+    public LogSubscribeRunnable(List<SseEmitter> sseEmitterList, String topic) {
         this.sseEmitterList = sseEmitterList;
+        this.topic = topic;
         // 连接
         prepareConnection();
         if (this.connection == null) {
             this.exit = true;
+            return;
         }
         // 建立主题
         createTopic();
-
     }
 
     @Override
     public void run() {
         // 参数校验
-
+        getSubscribe();
+        // 删除主题
+        deleteTopic();
     }
 
     private void prepareConnection () {
@@ -72,7 +75,7 @@ public class LogSubscribeRunnable implements Runnable{
     private void createTopic() {
         try (Statement statement = this.connection.createStatement()) {
             statement.executeUpdate("drop topic if exists " + this.topic);
-            statement.executeUpdate("create topic " + this.topic + " as select * from meters");
+            statement.executeUpdate("create topic " + this.topic + " AS SELECT ts, `value` FROM xuande_log.t_log");
         } catch (Exception e) {
             this.exit = true;
             e.printStackTrace();
@@ -80,7 +83,6 @@ public class LogSubscribeRunnable implements Runnable{
     }
 
     public void getSubscribe() {
-
         try {
             // create consumer
             Properties properties = new Properties();
@@ -101,11 +103,11 @@ public class LogSubscribeRunnable implements Runnable{
             // poll data
             try (TaosConsumer<XuandeLog> consumer = new TaosConsumer<>(properties)) {
                 consumer.subscribe(Collections.singletonList(this.topic));
-                while (!sseEmitterList.isEmpty() && exit) {
+                while (!sseEmitterList.isEmpty() && !exit) {
+                    System.out.println("当前等待连接中" + sseEmitterList.size());
                     ConsumerRecords<XuandeLog> meters = consumer.poll(Duration.ofMillis(100));
                     for (ConsumerRecord<XuandeLog> r : meters) {
                         XuandeLog meter = r.value();
-                        System.out.println(meter);
                         pushData(this.topic, meter.toString());
                     }
                 }
@@ -124,22 +126,24 @@ public class LogSubscribeRunnable implements Runnable{
      * @param data     要推送的数据
      */
     private void pushData(String dataType, String data) {
+        List<SseEmitter> errorEmitter = new ArrayList<>();
         sseEmitterList.forEach(emitter -> {
             try {
                 emitter.send(SseEmitter.event().data(data, MediaType.TEXT_PLAIN));
             } catch (IOException e) {
-                removeEmitter(dataType, emitter);
+                errorEmitter.add(emitter);
             }
         });
+        sseEmitterList.removeAll(errorEmitter);
     }
 
-    private void removeEmitter(String dataType, SseEmitter emitter) {
-        sseEmitterList.remove(emitter);
+    private void deleteTopic() {
+        try (Statement statement = this.connection.createStatement()) {
+            statement.executeUpdate("drop topic if exists " + this.topic);
+        } catch (Exception e) {
+            this.exit = true;
+            e.printStackTrace();
+        }
     }
-
-    private void removeTopic() {
-        // remove current topic
-    }
-
 
 }

@@ -11,7 +11,7 @@
   const dataContainer = document.getElementById('data-container');
 
   // 创建一个 EventSource 对象，指定 SSE 服务器端点的 URL
-  let eventSource = new EventSource('http://127.0.0.1:13024/environment/subscribe'); // 根据你的控制器端点来设置URL
+  let eventSource = new EventSource('http://127.0.0.1:8080/environment/subscribe'); // 根据你的控制器端点来设置URL
 
   eventSource.onopen = function(event) {
 

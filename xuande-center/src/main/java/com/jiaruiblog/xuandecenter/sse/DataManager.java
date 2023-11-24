@@ -37,12 +37,12 @@ public class DataManager {
 
         // 如果当前不存在此线程，则新建线程
         if (!logSubscribeRunnableMap.containsKey(dataType)) {
-            LogSubscribeRunnable logSubscribeRunnable = new LogSubscribeRunnable(dataEmitters.get(dataType));
+            LogSubscribeRunnable logSubscribeRunnable = new LogSubscribeRunnable(dataEmitters.get(dataType), dataType);
             if (logSubscribeRunnable.exit) {
                 // 使发射完成
                 emitter.complete();
             } else {
-                logSubscribeRunnable.run();
+                new Thread(logSubscribeRunnable,dataType).start();
                 logSubscribeRunnableMap.put(dataType, logSubscribeRunnable);
             }
         }
@@ -66,6 +66,7 @@ public class DataManager {
     }
 
     private void removeEmitter(String dataType, SseEmitter emitter) {
+        System.out.println("进入到关闭程序中");
         List<SseEmitter> emitters = dataEmitters.get(dataType);
         if (emitters != null) {
             emitters.remove(emitter);
@@ -76,7 +77,9 @@ public class DataManager {
 
     private void exitSubscribe(String dataType ) {
         LogSubscribeRunnable logSubscribeRunnable = logSubscribeRunnableMap.get(dataType);
-        logSubscribeRunnable.exit = true;
-        logSubscribeRunnableMap.remove(dataType);
+        if (logSubscribeRunnable != null) {
+            logSubscribeRunnable.exit = true;
+            logSubscribeRunnableMap.remove(dataType);
+        }
     }
 }
